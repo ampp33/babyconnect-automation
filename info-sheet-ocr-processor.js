@@ -108,22 +108,26 @@ class InfoSheetOcrProcessor {
     }
 
     #parseTime(text, isMorning) {
-      const amPM = (isMorning ? 'AM' : 'PM')
+      let amPM = (isMorning ? 'AM' : 'PM')
       const chars = [...text]
       const digits = []
       for(const c of chars) if(c >= '0' && c <= '9') digits.push(c)
-      if(digits.length === 3) return digits[0] + ':' + digits[1] + digits[2] + amPM
-      if(digits.length === 4) {
-        const hour = digits[0] + digits[1]
-        if(parseInt(hour) > 12) {
-          return digits[0] + ':' + digits[digits.length - 2] + digits[digits.length - 1] + amPM
-        } else if (parseInt(hour) == 12) {
-          // if time is 12 then assume it's afternoon, since daycare isn't open at midnight :)
-          return digits[0] + digits[1] + ':' + digits[2] + digits[3] + 'PM'
-        }
-        return digits[0] + digits[1] + ':' + digits[2] + digits[3] + amPM
+      if(digits.length === 3) {
+        // if the time is before '7' that means they accidentally logged an afternoon
+        // time in the morning section, so set the AM/PM to PM
+        if(parseInt(digits[0]) < 7) amPM = 'PM'
+        return digits[0] + ':' + digits[1] + digits[2] + amPM
       }
-      if(digits.length > 4) return digits[0] + digits[1] + ':' + digits[digits.length - 2] + digits[digits.length - 1] + amPM
+      if(digits.length >= 4) {
+        const hour = digits[0] + digits[1]
+        const minutes = digits[digits.length - 2] + digits[digits.length - 1]
+        // if hour is greater than 12 then the time value was incorrectly OCR'd,
+        // so make our best guess using only the first hour digit and original minute digits
+        if(parseInt(hour) > 12) return digits[0] + ':' + minutes + amPM
+        // if time is 12 then assume it's afternoon, since daycare isn't open at midnight :)
+        else if (parseInt(hour) == 12) amPM = 'PM'
+        return hour + ':' + minutes + amPM
+      }
       // less than 3 digits, return null to indicate that the time couldn't be parsed
       return null
     }
